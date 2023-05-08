@@ -18,6 +18,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	store := NewStore()
+
 	for {
 		conn, err := l.Accept()
 		if err != nil {
@@ -25,11 +27,11 @@ func main() {
 			os.Exit(1)
 		}
 
-		go handle(conn)
+		go handle(conn, store)
 	}
 }
 
-func handle(conn net.Conn) {
+func handle(conn net.Conn, store *Store) {
 	defer conn.Close()
 
 	for {
@@ -51,6 +53,12 @@ func handle(conn net.Conn) {
 			conn.Write(prepareRESPString("PONG"))
 		case "echo":
 			conn.Write(prepareRESPArray(args))
+		case "set":
+			store.Set(args[0].String(), args[1].String())
+			conn.Write(prepareRESPString("OK"))
+		case "get":
+			value := store.Get(args[0].String())
+			conn.Write(prepareRESPString(value))
 		default:
 			conn.Write([]byte("-ERR unknown command '" + command + "'\r\n"))
 		}
