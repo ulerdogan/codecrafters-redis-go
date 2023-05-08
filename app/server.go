@@ -23,22 +23,24 @@ func main() {
 		}
 		defer conn.Close()
 
-		go func() {
-			for {
-				buffer := make([]byte, 1024)
-				if n, err := conn.Read(buffer); err != nil {
-					if n == 0 {
-						fmt.Println("Connection closed")
-						return
-					}
+		go handle(conn)
+	}
+}
 
-					fmt.Println("Error reading message: ", err.Error())
-					os.Exit(1)
-				}
-
-				conn.Write(prepareRESP("PONG"))
+func handle(conn net.Conn) {
+	for {
+		buffer := make([]byte, 1024)
+		if n, err := conn.Read(buffer); err != nil {
+			if n == 0 {
+				fmt.Println("Connection closed")
+				return
 			}
-		}()
+
+			fmt.Println("Error reading message: ", err.Error())
+			os.Exit(1)
+		}
+
+		conn.Write(prepareRESP("PONG"))
 	}
 }
 
