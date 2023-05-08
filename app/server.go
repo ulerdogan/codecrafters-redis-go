@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 )
@@ -21,29 +24,35 @@ func main() {
 			fmt.Println("Error accepting connection: ", err.Error())
 			os.Exit(1)
 		}
-		defer conn.Close()
 
 		go handle(conn)
 	}
 }
 
 func handle(conn net.Conn) {
+	defer conn.Close()
+
 	for {
-		buffer := make([]byte, 1024)
-		if n, err := conn.Read(buffer); err != nil {
-			if n == 0 {
-				fmt.Println("Connection closed")
-				return
+		value, err := DecodeRESP(bufio.NewReader(conn))
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
 			}
 
-			fmt.Println("Error reading message: ", err.Error())
-			os.Exit(1)
+			fmt.Println("Error decoding RESP: ", err.Error())
+			return
 		}
 
-		conn.Write(prepareRESP("PONG"))
-	}
-}
+		command := value.command
+		args := value.Array()
 
-func prepareRESP(s string) []byte {
-	return []byte(fmt.Sprintf("+%s\r\n", s))
+		switch command {
+		case "ping":
+			conn.Write(prepareRESPString("PONG"))
+		case "echo":
+			conn.Write(prepareRESPArray(args))
+		default:
+			conn.Write([]byte("-ERR unknown command '" + command + "'\r\n"))
+		}
+	}
 }
