@@ -7,6 +7,8 @@ import (
 	"io"
 	"net"
 	"os"
+	"strconv"
+	"time"
 )
 
 func main() {
@@ -50,15 +52,35 @@ func handle(conn net.Conn, store *Store) {
 
 		switch command {
 		case "ping":
-			conn.Write(prepareRESPString("PONG"))
+			conn.Write(prepareRESP("PONG"))
 		case "echo":
 			conn.Write(prepareRESPArray(args))
 		case "set":
-			store.Set(args[0].String(), args[1].String())
-			conn.Write(prepareRESPString("OK"))
+			if len(args) < 3 {
+				store.Set(args[0].String(), args[1].String(), time.Duration(0))
+			} else {
+				if args[2].String() == "px" {
+					expireIn, err := strconv.Atoi(args[3].String())
+					if err != nil {
+						conn.Write([]byte("-ERR invalid expire time in SET\r\n"))
+						continue
+					}
+
+					store.Set(args[0].String(), args[1].String(), time.Duration(expireIn)*time.Millisecond)
+				} else {
+					conn.Write([]byte(fmt.Sprintf("-ERR unknown option for set: %s\r\n", args[2].String())))
+					continue
+				}
+			}
+			conn.Write(prepareRESP("OK"))
 		case "get":
 			value := store.Get(args[0].String())
-			conn.Write(prepareRESPString(value))
+			if value != "" {
+				fmt.Println("HERE1 ", value)
+				conn.Write(prepareRESPString(value))
+			} else {
+				conn.Write(prepareRESPErr())
+			}
 		default:
 			conn.Write([]byte("-ERR unknown command '" + command + "'\r\n"))
 		}

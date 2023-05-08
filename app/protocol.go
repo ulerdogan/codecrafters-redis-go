@@ -112,7 +112,7 @@ func decodeArray(byteStream *bufio.Reader) (*Value, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read bulk string length: %s", err)
 	}
-	
+
 	count, err := strconv.Atoi(string(readBytesForCount))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse bulk string length: %s", err)
@@ -134,10 +134,18 @@ func decodeArray(byteStream *bufio.Reader) (*Value, error) {
 	}, nil
 }
 
-func prepareRESPString(s string) []byte {
+func prepareRESP(s string) []byte {
 	return []byte(fmt.Sprintf("+%s\r\n", s))
+}
+
+func prepareRESPString(arg string) []byte {
+	return []byte(fmt.Sprintf("$%d\r\n%s\r\n", len(arg), arg))
 }
 
 func prepareRESPArray(args []Value) []byte {
 	return []byte(fmt.Sprintf("$%d\r\n%s\r\n", len(args[0].String()), args[0].String()))
+}
+
+func prepareRESPErr() []byte {
+	return []byte("$-1\r\n")
 }
